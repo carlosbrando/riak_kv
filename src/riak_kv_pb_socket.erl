@@ -64,7 +64,7 @@ start_link(SslOpts) ->
 set_socket(Pid, Socket) ->
     gen_server2:call(Pid, {set_socket, Socket}).
 
-init([SslOpts]) ->
+init(SslOpts) ->
 	error_logger:error_msg("SSLOPTS = ~p~n", [SslOpts]),
 	riak_kv_stat:update(pbc_connect),
 	{ok, C} = riak:local_client(),
