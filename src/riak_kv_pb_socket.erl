@@ -59,12 +59,13 @@ start_link() ->
 	start_link([]).
 
 start_link(SslOpts) ->
-	gen_server2:start_link(?MODULE, [SslOpts], []).
+	gen_server2:start_link(?MODULE, SslOpts, []).
 
 set_socket(Pid, Socket) ->
     gen_server2:call(Pid, {set_socket, Socket}).
 
 init([SslOpts]) ->
+	error_logger:error_msg("SSLOPTS = ~p~n", [SslOpts]),
 	riak_kv_stat:update(pbc_connect),
 	{ok, C} = riak:local_client(),
     {ok, #state{client = C,
