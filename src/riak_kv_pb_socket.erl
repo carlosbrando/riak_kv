@@ -59,7 +59,7 @@ start_link() ->
 	start_link([]).
 
 start_link(SslOpts) ->
-	gen_server2:start_link(?MODULE, SslOpts, []).
+	gen_server2:start_link(?MODULE, [SslOpts], []).
 
 set_socket(Pid, Socket) ->
     gen_server2:call(Pid, {set_socket, Socket}).
