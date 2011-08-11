@@ -31,13 +31,13 @@ start_socket() ->
     start_socket([]).
 
 start_socket(SslOpts) ->
-    supervisor:start_child(?MODULE, [SslOpts]).
+    supervisor:start_child(?MODULE, SslOpts).
 
 start_link() ->
 	start_link([]).
 
 start_link(SslOpts) ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, [SslOpts]).
+    supervisor:start_link({local, ?MODULE}, ?MODULE, SslOpts).
 
 stop(_S) -> ok.
 
