@@ -25,7 +25,7 @@
 -module(riak_kv_pb_socket_sup).
 -behaviour(supervisor).
 -export([start_link/0, init/1, stop/1]).
-export([start_socket/0, start_socket/1]).
+-export([start_socket/0, start_socket/1]).
 
 start_socket() ->
 	start_socket([]).
