@@ -43,8 +43,9 @@ stop(_S) -> ok.
 
 %% @private
 init(SslOpts) ->
+	error_logger:error_msg("Super SslOpts = ~p~n", [SslOpts]),
     {ok, 
      {{simple_one_for_one, 10, 10}, 
       [{undefined,
-        {riak_kv_pb_socket, start_link, SslOpts},
+        {riak_kv_pb_socket, start_link, [SslOpts]},
         temporary, brutal_kill, worker, [riak_kv_pb_socket]}]}}.
