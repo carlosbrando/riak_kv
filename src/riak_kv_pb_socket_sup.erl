@@ -24,28 +24,27 @@
 
 -module(riak_kv_pb_socket_sup).
 -behaviour(supervisor).
--export([start_link/0, init/1, stop/1]).
+-export([start_link/0, start_link/1, init/1, stop/1]).
 -export([start_socket/0, start_socket/1]).
 
 start_socket() ->
     start_socket([]).
 
-start_socket(_SslOpts) ->
-    % supervisor:start_child(?MODULE, [SslOpts]).
-    supervisor:start_child(?MODULE, []).
+start_socket(SslOpts) ->
+    supervisor:start_child(?MODULE, [SslOpts]).
 
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+	start_link([]).
 
-% start_link(SslOpts) ->
-%     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+start_link(SslOpts) ->
+    supervisor:start_link({local, ?MODULE}, ?MODULE, [SslOpts]).
 
 stop(_S) -> ok.
 
 %% @private
-init([]) ->
+init(SslOpts) ->
     {ok, 
      {{simple_one_for_one, 10, 10}, 
       [{undefined,
-        {riak_kv_pb_socket, start_link, []},
+        {riak_kv_pb_socket, start_link, SslOpts},
         temporary, brutal_kill, worker, [riak_kv_pb_socket]}]}}.
