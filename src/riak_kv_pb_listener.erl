@@ -27,16 +27,20 @@
 -export([start_link/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
--export([sock_opts/0, new_connection/2]).
--record(state, {portnum}).
+-export([sock_opts/0, new_connection/2, get_ssl_options/0]).
+-record(state, {
+          portnum :: integer(),
+          ssl_opts :: list()
+         }).
 
 start_link() ->
     PortNum = app_helper:get_env(riak_kv, pb_port),
     IpAddr = app_helper:get_env(riak_kv, pb_ip),
-    gen_nb_server:start_link(?MODULE, IpAddr, PortNum, [PortNum]).
+	SslOpts = get_ssl_options(),
+	gen_nb_server:start_link(?MODULE, IpAddr, PortNum, [PortNum, SslOpts]).
 
-init([PortNum]) -> 
-    {ok, #state{portnum=PortNum}}.
+init([PortNum, SslOpts]) ->
+	{ok, #state{portnum=PortNum, ssl_opts = SslOpts}}.
 
 sock_opts() ->
     BackLog = app_helper:get_env(riak_kv, pb_backlog, 5),
@@ -53,9 +57,40 @@ terminate(_Reason, _State) -> ok.
 
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
-new_connection(Socket, State) ->
-    {ok, Pid} = riak_kv_pb_socket_sup:start_socket(),
+new_connection(Socket, State = #state{ssl_opts = SslOpts}) ->
+    % {ok, Pid} = riak_kv_pb_socket_sup:start_socket(),
+	{ok, Pid} = riak_core_handoff_receiver:start_link(SslOpts), % FIXME Remover riak_core_handoff_receiver
     ok = gen_tcp:controlling_process(Socket, Pid),
     ok = riak_kv_pb_socket:set_socket(Pid, Socket),
     {ok, State}.
 
+get_ssl_options() ->
+    case app_helper:get_env(riak_kv, ssl, []) of
+        [] ->
+            [];
+        Props ->
+            try
+                %% We'll check if the file(s) exist but won't check
+                %% file contents' sanity.
+                ZZ = [{_, {ok, _}} = {ToCheck, file:read_file(Path)} ||
+                         ToCheck <- [certfile, keyfile, cacertfile, dhfile],
+                         Path <- [proplists:get_value(ToCheck, Props)],
+                         Path /= undefined],
+                spawn(fun() -> self() ! ZZ end), % Avoid term...never used err
+                %% Props are OK
+                Props
+            catch
+                error:{badmatch, {FailProp, BadMat}} ->
+                    error_logger:error_msg("riak_kv ssl "
+                                           "config error: property ~p: ~p.  "
+                                           "Disabling Protocol Buffers SSL\n",
+                                           [FailProp, BadMat]),
+                    [];
+                X:Y ->
+                    error_logger:error_msg("riak_kv ssl "
+                                           "failure {~p, ~p} processing config "
+                                           "~p.  Disabling Protocol Buffers SSL\n",
+                                           [X, Y, Props]),
+                    []
+            end
+    end.
