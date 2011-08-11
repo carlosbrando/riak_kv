@@ -75,6 +75,7 @@ init([SslOpts]) ->
 
 handle_call({set_socket, Socket0}, _From, State = #state{ssl_opts = SslOpts}) ->
     SockOpts = [{active, once}, {packet, 4}, {header, 1}],
+	error_logger:error_msg("handle_call set_socket SslOpts = ~p~n", [SslOpts]),
     Socket = if SslOpts /= [] ->
                      {ok, Skt} = ssl:ssl_accept(Socket0, SslOpts, 30*1000),
                      ok = ssl:setopts(Skt, SockOpts),
