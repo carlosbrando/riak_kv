@@ -64,8 +64,7 @@ start_link(SslOpts) ->
 set_socket(Pid, Socket) ->
     gen_server2:call(Pid, {set_socket, Socket}).
 
-init(SslOpts) ->
-	error_logger:error_msg("SSLOPTS = ~p~n", [SslOpts]),
+init([SslOpts]) ->
 	riak_kv_stat:update(pbc_connect),
 	{ok, C} = riak:local_client(),
     {ok, #state{client = C,
@@ -103,7 +102,7 @@ handle_info({tcp, _Sock, Data}, State=#state{sock=Socket}) ->
 			InetMod = if NewState#state.ssl_opts /= [] -> ssl;
                          true                          -> inet
                       end,
-            InetMod:setopts(Socket, [{active, once}])
+            InetMod:setopts(Socket, [{active, once}]),
     end,
     {noreply, NewState};
 handle_info({ssl_closed, Socket}, State) ->
@@ -111,7 +110,7 @@ handle_info({ssl_closed, Socket}, State) ->
 handle_info({ssl_error, Socket, Reason}, State) ->
     handle_info({tcp_error, Socket, Reason}, State);
 handle_info({ssl, Socket, Data}, State) ->
-    handle_info({tcp, Socket, Data}, State);
+    handle_info({tcp, Socket, Data}, State).
 
 %% Handle responses from stream_list_keys 
 handle_info({ReqId, done},
