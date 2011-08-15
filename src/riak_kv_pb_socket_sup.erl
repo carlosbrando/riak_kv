@@ -28,10 +28,10 @@
 -export([start_socket/0, start_socket/1]).
 
 start_socket() ->
-	start_socket([]).
-	
+    start_socket([]).
+    
 start_socket(SslOpts) ->
-	supervisor:start_child(?MODULE, [SslOpts]).
+    supervisor:start_child(?MODULE, [SslOpts]).
 
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).

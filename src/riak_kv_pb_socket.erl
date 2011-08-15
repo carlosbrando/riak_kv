@@ -32,20 +32,20 @@
 -behaviour(gen_server).
 
 -export([start_link/0,                          % Don't use SSL
-		 start_link/1,                          % SSL options list, empty=no SSL
-		 set_socket/2]).
+         start_link/1,                          % SSL options list, empty=no SSL
+         set_socket/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
 -type msg() ::  atom() | tuple().
 
--record(state, {sock,      						% protocol buffers socket
-				ssl_opts :: [] | list(),
-				tcp_mod :: atom(),
-				inet_mod :: atom(),
-                client,							% local client
-                req,       						% current request (for multi-message requests like list keys)
-                req_ctx}). 						% context to go along with request (partial results, request ids etc)
+-record(state, {sock,                           % protocol buffers socket
+                ssl_opts :: [] | list(),
+                tcp_mod :: atom(),
+                inet_mod :: atom(),
+                client,                         % local client
+                req,                            % current request (for multi-message requests like list keys)
+                req_ctx}).                      % context to go along with request (partial results, request ids etc)
 
 
 -define(PROTO_MAJOR, 1).
@@ -57,23 +57,23 @@
 %% ===================================================================
 
 start_link() ->
-	start_link([]).
+    start_link([]).
 
 start_link(SslOpts) ->
-	gen_server2:start_link(?MODULE, [SslOpts], []).
+    gen_server2:start_link(?MODULE, [SslOpts], []).
 
 set_socket(Pid, Socket) ->
     gen_server2:call(Pid, {set_socket, Socket}).
 
 init([SslOpts]) ->
-	riak_kv_stat:update(pbc_connect),
-	{ok, C} = riak:local_client(),
+    riak_kv_stat:update(pbc_connect),
+    {ok, C} = riak:local_client(),
     {ok, #state{client = C,
-				ssl_opts = SslOpts,
+                ssl_opts = SslOpts,
                 tcp_mod  = if SslOpts /= [] -> ssl;
                               true          -> gen_tcp
                            end,
-				inet_mod = if SslOpts /= [] -> ssl;
+                inet_mod = if SslOpts /= [] -> ssl;
                               true          -> inet
                            end}}.
 
@@ -103,7 +103,7 @@ handle_info({tcp, _Sock, Data}, State=#state{sock=Socket}) ->
         {pause, NewState} ->
             ok;
         NewState ->
-			InetMod = NewState#state.inet_mod,
+            InetMod = NewState#state.inet_mod,
             InetMod:setopts(Socket, [{active, once}])
     end,
     {noreply, NewState};
@@ -118,7 +118,7 @@ handle_info({ssl, Socket, Data}, State) ->
 handle_info({ReqId, done},
             State=#state{sock = Socket, req=#rpblistkeysreq{}, req_ctx=ReqId}) ->
     NewState = send_msg(#rpblistkeysresp{done = 1}, State),
-	InetMod = NewState#state.inet_mod,
+    InetMod = NewState#state.inet_mod,
     InetMod:setopts(Socket, [{active, once}]),
     {noreply, NewState#state{req = undefined, req_ctx = undefined}};
 handle_info({ReqId, {keys, []}}, State=#state{req=#rpblistkeysreq{}, req_ctx=ReqId}) ->
@@ -128,7 +128,7 @@ handle_info({ReqId, {keys, Keys}}, State=#state{req=#rpblistkeysreq{}, req_ctx=R
 handle_info({ReqId, Error},
             State=#state{sock = Socket, req=#rpblistkeysreq{}, req_ctx=ReqId}) ->
     NewState = send_error("~p", [Error], State),
-	InetMod = NewState#state.inet_mod,
+    InetMod = NewState#state.inet_mod,
     InetMod:setopts(Socket, [{active, once}]),
     {noreply, NewState#state{req = undefined, req_ctx = undefined}};
 
@@ -136,7 +136,7 @@ handle_info({ReqId, Error},
 handle_info(#pipe_eoi{ref=ReqId},
             State=#state{sock = Socket, req=#rpbmapredreq{}, req_ctx=ReqId}) ->
     NewState = send_msg(#rpbmapredresp{done = 1}, State),
-	InetMod = NewState#state.inet_mod,
+    InetMod = NewState#state.inet_mod,
     InetMod:setopts(Socket, [{active, once}]),
     {noreply, NewState#state{req = undefined, req_ctx = undefined}};
 
@@ -147,7 +147,7 @@ handle_info(#pipe_result{ref=ReqId, from=PhaseId, result=Res},
     case encode_mapred_phase([Res], ContentType) of
         {error, Reason} ->
             NewState = send_error("~p", [Reason], State),
-			InetMod = NewState#state.inet_mod,
+            InetMod = NewState#state.inet_mod,
             InetMod:setopts(Socket, [{active, once}]),
             {noreply, NewState#state{req = undefined, req_ctx = undefined}};
         Response ->
@@ -160,14 +160,14 @@ handle_info(#pipe_result{ref=ReqId, from=PhaseId, result=Res},
 handle_info({flow_results, ReqId, done},
             State=#state{sock = Socket, req=#rpbmapredreq{}, req_ctx=ReqId}) ->
     NewState = send_msg(#rpbmapredresp{done = 1}, State),
-	InetMod = NewState#state.inet_mod,
+    InetMod = NewState#state.inet_mod,
     InetMod:setopts(Socket, [{active, once}]),
     {noreply, NewState#state{req = undefined, req_ctx = undefined}};
 
 handle_info({flow_results, ReqId, {error, Reason}},
             State=#state{sock = Socket, req=#rpbmapredreq{}, req_ctx=ReqId}) ->
     NewState = send_error("~p", [Reason], State),
-	InetMod = NewState#state.inet_mod,
+    InetMod = NewState#state.inet_mod,
     InetMod:setopts(Socket, [{active, once}]),
     {noreply, NewState#state{req = undefined, req_ctx = undefined}};
 
@@ -178,7 +178,7 @@ handle_info({flow_results, PhaseId, ReqId, Res},
     case encode_mapred_phase(Res, ContentType) of
         {error, Reason} ->
             NewState = send_error("~p", [Reason], State),
-			InetMod = NewState#state.inet_mod,
+            InetMod = NewState#state.inet_mod,
             InetMod:setopts(Socket, [{active, once}]),
             {noreply, NewState#state{req = undefined, req_ctx = undefined}};
         Response ->
@@ -189,7 +189,7 @@ handle_info({flow_results, PhaseId, ReqId, Res},
 handle_info({flow_error, ReqId, Error},
             State=#state{sock = Socket, req=#rpbmapredreq{}, req_ctx=ReqId}) ->
     NewState = send_error("~p", [Error], State),
-	InetMod = NewState#state.inet_mod,
+    InetMod = NewState#state.inet_mod,
     InetMod:setopts(Socket, [{active, once}]),
     {noreply, NewState#state{req = undefined, req_ctx = undefined}};
 
