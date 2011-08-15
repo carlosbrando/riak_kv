@@ -519,8 +519,12 @@ legacy_mapreduce(#rpbmapredreq{content_type=ContentType}=Req,
 %% Send a message to the client
 -spec send_msg(msg(), #state{}) -> #state{}.
 send_msg(Msg, State=#state{sock=Socket, tcp_mod=TcpMod}) ->
+	error_logger:error_msg("send_msg"),
     Pkt = riakc_pb:encode(Msg),
+	error_logger:error_msg("send_msg - passou encode"),
+	error_logger:error_msg("send_msg - TcpMod = ~p~n", [TcpMod]),
     TcpMod:send(Socket, Pkt),
+	error_logger:error_msg("mensagem enviada"),
     State.
     
 %% Send an error to the client
