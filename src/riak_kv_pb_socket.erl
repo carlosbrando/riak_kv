@@ -81,6 +81,7 @@ handle_call({set_socket, Socket0}, _From, State = #state{ssl_opts = SslOpts}) ->
                      {ok, Skt} = ssl:ssl_accept(Socket0, SslOpts, 30*1000),
 					 error_logger:error_msg("handle_call set_socket ssl:setopts"),
                      ok = ssl:setopts(Skt, SockOpts),
+					 error_logger:error_msg("handle_call set_socket passou ssl:setopts"),
                      Skt;
                 true ->
 					 error_logger:error_msg("handle_call set_socket inet"),
