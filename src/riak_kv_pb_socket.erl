@@ -42,6 +42,7 @@
 -record(state, {sock,      						% protocol buffers socket
 				ssl_opts :: [] | list(),
 				tcp_mod :: atom(),
+				inet_mod :: atom(),
                 client,							% local client
                 req,       						% current request (for multi-message requests like list keys)
                 req_ctx}). 						% context to go along with request (partial results, request ids etc)
@@ -71,6 +72,9 @@ init([SslOpts]) ->
 				ssl_opts = SslOpts,
                 tcp_mod  = if SslOpts /= [] -> ssl;
                               true          -> gen_tcp
+                           end,
+				inet_mod = if SslOpts /= [] -> ssl;
+                              true          -> inet
                            end}}.
 
 handle_call({set_socket, Socket0}, _From, State = #state{ssl_opts = SslOpts}) ->
@@ -104,9 +108,7 @@ handle_info({tcp, _Sock, Data}, State=#state{sock=Socket}) ->
         {pause, NewState} ->
             ok;
         NewState ->
-			InetMod = if NewState#state.ssl_opts /= [] -> ssl;
-                         true                          -> inet
-                      end,
+			InetMod = NewState#state.inet_mod,
             InetMod:setopts(Socket, [{active, once}])
     end,
     {noreply, NewState};
@@ -121,7 +123,8 @@ handle_info({ssl, Socket, Data}, State) ->
 handle_info({ReqId, done},
             State=#state{sock = Socket, req=#rpblistkeysreq{}, req_ctx=ReqId}) ->
     NewState = send_msg(#rpblistkeysresp{done = 1}, State),
-    inet:setopts(Socket, [{active, once}]),
+	InetMod = NewState#state.inet_mod,
+    InetMod:setopts(Socket, [{active, once}]),
     {noreply, NewState#state{req = undefined, req_ctx = undefined}};
 handle_info({ReqId, {keys, []}}, State=#state{req=#rpblistkeysreq{}, req_ctx=ReqId}) ->
     {noreply, State}; % No keys - no need to send a message, will send done soon.
@@ -130,14 +133,16 @@ handle_info({ReqId, {keys, Keys}}, State=#state{req=#rpblistkeysreq{}, req_ctx=R
 handle_info({ReqId, Error},
             State=#state{sock = Socket, req=#rpblistkeysreq{}, req_ctx=ReqId}) ->
     NewState = send_error("~p", [Error], State),
-    inet:setopts(Socket, [{active, once}]),
+	InetMod = NewState#state.inet_mod,
+    InetMod:setopts(Socket, [{active, once}]),
     {noreply, NewState#state{req = undefined, req_ctx = undefined}};
 
 %% PIPE Handle response from mapred_stream
 handle_info(#pipe_eoi{ref=ReqId},
             State=#state{sock = Socket, req=#rpbmapredreq{}, req_ctx=ReqId}) ->
     NewState = send_msg(#rpbmapredresp{done = 1}, State),
-    inet:setopts(Socket, [{active, once}]),
+	InetMod = NewState#state.inet_mod,
+    InetMod:setopts(Socket, [{active, once}]),
     {noreply, NewState#state{req = undefined, req_ctx = undefined}};
 
 handle_info(#pipe_result{ref=ReqId, from=PhaseId, result=Res},
@@ -147,7 +152,8 @@ handle_info(#pipe_result{ref=ReqId, from=PhaseId, result=Res},
     case encode_mapred_phase([Res], ContentType) of
         {error, Reason} ->
             NewState = send_error("~p", [Reason], State),
-            inet:setopts(Socket, [{active, once}]),
+			InetMod = NewState#state.inet_mod,
+            InetMod:setopts(Socket, [{active, once}]),
             {noreply, NewState#state{req = undefined, req_ctx = undefined}};
         Response ->
             {noreply, send_msg(#rpbmapredresp{phase=PhaseId, 
@@ -159,13 +165,15 @@ handle_info(#pipe_result{ref=ReqId, from=PhaseId, result=Res},
 handle_info({flow_results, ReqId, done},
             State=#state{sock = Socket, req=#rpbmapredreq{}, req_ctx=ReqId}) ->
     NewState = send_msg(#rpbmapredresp{done = 1}, State),
-    inet:setopts(Socket, [{active, once}]),
+	InetMod = NewState#state.inet_mod,
+    InetMod:setopts(Socket, [{active, once}]),
     {noreply, NewState#state{req = undefined, req_ctx = undefined}};
 
 handle_info({flow_results, ReqId, {error, Reason}},
             State=#state{sock = Socket, req=#rpbmapredreq{}, req_ctx=ReqId}) ->
     NewState = send_error("~p", [Reason], State),
-    inet:setopts(Socket, [{active, once}]),
+	InetMod = NewState#state.inet_mod,
+    InetMod:setopts(Socket, [{active, once}]),
     {noreply, NewState#state{req = undefined, req_ctx = undefined}};
 
 handle_info({flow_results, PhaseId, ReqId, Res},
@@ -175,7 +183,8 @@ handle_info({flow_results, PhaseId, ReqId, Res},
     case encode_mapred_phase(Res, ContentType) of
         {error, Reason} ->
             NewState = send_error("~p", [Reason], State),
-            inet:setopts(Socket, [{active, once}]),
+			InetMod = NewState#state.inet_mod,
+            InetMod:setopts(Socket, [{active, once}]),
             {noreply, NewState#state{req = undefined, req_ctx = undefined}};
         Response ->
             {noreply, send_msg(#rpbmapredresp{phase=PhaseId, 
@@ -185,7 +194,8 @@ handle_info({flow_results, PhaseId, ReqId, Res},
 handle_info({flow_error, ReqId, Error},
             State=#state{sock = Socket, req=#rpbmapredreq{}, req_ctx=ReqId}) ->
     NewState = send_error("~p", [Error], State),
-    inet:setopts(Socket, [{active, once}]),
+	InetMod = NewState#state.inet_mod,
+    InetMod:setopts(Socket, [{active, once}]),
     {noreply, NewState#state{req = undefined, req_ctx = undefined}};
 
 handle_info(_, State) -> % Ignore any late replies from gen_servers/messages from fsms
