@@ -79,16 +79,11 @@ init([SslOpts]) ->
 
 handle_call({set_socket, Socket0}, _From, State = #state{ssl_opts = SslOpts}) ->
     SockOpts = [{active, once}, {packet, 4}, {header, 1}],
-	error_logger:error_msg("handle_call set_socket SslOpts = ~p~n", [SslOpts]),
     Socket = if SslOpts /= [] ->
-					 error_logger:error_msg("handle_call set_socket ssl:ssl_accept"),
                      {ok, Skt} = ssl:ssl_accept(Socket0, SslOpts, 30*1000),
-					 error_logger:error_msg("handle_call set_socket ssl:setopts"),
                      ok = ssl:setopts(Skt, SockOpts),
-					 error_logger:error_msg("handle_call set_socket passou ssl:setopts"),
                      Skt;
                 true ->
-					 error_logger:error_msg("handle_call set_socket inet"),
                      ok = inet:setopts(Socket0, SockOpts),
                      Socket0
              end,
@@ -529,12 +524,8 @@ legacy_mapreduce(#rpbmapredreq{content_type=ContentType}=Req,
 %% Send a message to the client
 -spec send_msg(msg(), #state{}) -> #state{}.
 send_msg(Msg, State=#state{sock=Socket, tcp_mod=TcpMod}) ->
-	error_logger:error_msg("send_msg"),
     Pkt = riakc_pb:encode(Msg),
-	error_logger:error_msg("send_msg - passou encode"),
-	error_logger:error_msg("send_msg - TcpMod = ~p~n", [TcpMod]),
     TcpMod:send(Socket, Pkt),
-	error_logger:error_msg("mensagem enviada"),
     State.
     
 %% Send an error to the client
